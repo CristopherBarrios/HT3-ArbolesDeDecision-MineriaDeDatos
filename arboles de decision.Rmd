@@ -51,7 +51,8 @@ ggplot(data=df, aes(x=train$HouseStyle)) +
   geom_bar(stat="count", 
            width=0.5, 
            color="black",
-           fill = "green")
+           fill = "green") +
+  labs(x="Estilos", y="Cantidad", title = "Estilos de casa") 
 ```
 
 Las casas que predominan el mercado son las de un nivel.
@@ -63,7 +64,8 @@ ggplot(data=df, aes(x=train$YearBuilt)) +
   geom_bar(stat="count", 
            width=0.5, 
            color="black",
-           fill = "green")
+           fill = "green") +
+  labs(x="Año de construcción", y="Cantidad", title = "Año de construcción de la casa") 
 ```
 
 La década en la que más casas se han construidos han sido de 1900 a los 2000.
@@ -75,7 +77,8 @@ ggplot(data=df, aes(x=train$BldgType)) +
   geom_bar(stat="count", 
            width=0.5, 
            color="black",
-           fill = "green")
+           fill = "green") +
+  labs(x="Tipo de vivienda", y="Cantidad", title = "Tipos de vivienda") 
 ```
 
 Los tipos de casas más populares, son aquellos que fueron diseñados para una sola familia.
@@ -87,14 +90,16 @@ ggplot(data=df, aes(x=train$OverallQual)) +
   geom_bar(stat="count", 
            width=0.5, 
            color="black",
-           fill = "green")
+           fill = "green") +
+  labs(x="Acabado de la casa", y="Cantidad", title = "Material general y acabado de la casa") 
 
 df2 <- as.data.frame(train$OverallCond)
 ggplot(data=df2, aes(x=train$OverallCond)) + 
   geom_bar(stat="count", 
            width=0.5, 
            color="black",
-           fill = "green")
+           fill = "green") +
+  labs(x="Estado de la casa", y="Cantidad", title = "Estado general de la casa") 
 ```
 
 Las condiciones generales de las casas se encuentra en un rango de 5 a 10.
@@ -106,22 +111,23 @@ ggplot(data=df, aes(x=train$Condition1)) +
   geom_bar(stat="count", 
            width=0.5, 
            color="black",
-           fill = "green") 
+           fill = "green") +
+  labs(x="Proximidad a condiciones", y="Cantidad", title = "Proximidad de la casa a varias condiciones")
 ```
 
-La condicion 1 más popular o que más se da es la normal.
+La proximidad más popular o que más se da es la normal.
 
 
 
-## Seccion de clustering 
+### Clustering 
 
-Se trabajará con las siguientes variables que tienen formato int para formas grupos: LotArea, overallQual, overallCond, yearBuilt,bedroomAbvGr, GarageArea, SalePrice Esto debido a que son variables que se pueden clasificar por grupos y los resultados pueden ser interpretados.
+Se trabajará con las siguientes variables: LotArea, overallQual, overallCond, yearBuilt,bedroomAbvGr, GarageArea, SalePrice pues ya que son de formato int, estos pueden ser clasificados y valorados.
+
 ```{r preprocesamiento, echo=FALSE}
 datos <- train[,c(5,18,19,20,52,63,81)]
-summary(datos)
 ```
 
-Para saber la mejor cantidad de clusters a utilizar, se hará lo siguiente:
+Se calcula cuál es la cantidad ideal de clusters a utilizar.
 ```{r cantClusters, echo=FALSE}
 wss <- (nrow(datos[,1:7])-1)*sum(apply(datos[,1:7],2,var))
 for (i in 2:10) 
@@ -129,21 +135,20 @@ for (i in 2:10)
 plot(1:10, wss, type="b", xlab="Number of Clusters",  ylab="Within groups sum of squares")
 ```
 
-En base a esto, se determinó que el número ideal de clusters es 3
+Como se puede observar en la gráfica de codo, la cantidad ideal de clusters es de 3.
 
-## Agrupamiento por medio de k-means  
+#### Agrupamiento por medio de k-means  
 ```{r kmeans, echo=FALSE}
 km<-kmeans(datos[,1:7],3,iter.max =100)
 datos$grupo<-km$cluster
 plotcluster(datos[,1:7],km$cluster)
 ```
 
-Se puede observar cómo es que se han dividido los tres grupos, siendo el primero el de color negro, el segundo el de color rojo y el tercero el de color verde. Los grupos rojo y verde se encuentran altamente aglomerados, mientras que el grupo negro agrupa los datos más dispersos
+Con este algoritmo se puede ver que los datos se clasificaron en tres grupos, de los cuales uno está visualmente separado de los demás datos, y dos de estos están un poco más juntos.
 
-## Agrupamiento por medio de clustering jerárquico
+#### Agrupamiento por medio de clustering jerárquico
 ```{r jerarquico, echo=FALSE}
 hc<-hclust(dist(datos[,1:7])) #Genera el clustering jerárquico de los datos
-hc
 plot(hc) #Genera el dendograma
 rect.hclust(hc,k=3) #Dibuja el corte de los grupos en el gráfico
 groups<-cutree(hc,k=3) #corta el dendograma, determinando el grupo de cada fila
@@ -153,22 +158,19 @@ g2HC<-datos[datos$gruposHC==2,]
 g3HC<-datos[datos$gruposHC==3,]
 ```
 
-Este diagrama es más complicado de interpretar, cuenta con varios objetos, razón por la cual es más complicada encontrar la division entre dos grupos, sin embargo, es posible observar que uno de ellos se encuentra con datos mucho mas dispersos, el de la izquierda.
 
-## Calidad del agrupamiento
-### K-means
+#### Calidad del agrupamiento
+##### K-means
 ```{r calk, echo=FALSE}
 silkm<-silhouette(km$cluster,dist(datos[,1:7]))
 mean(silkm[,3])
 ```
 
-### Cluster jerárquico
+##### Cluster jerárquico
 ```{r caljer, echo=FALSE}
 silch<-silhouette(groups,dist(datos[,1:7]))
 mean(silch[,3])
 ```
-
-Según los valores obtenidos, el que cuenta con la mayor silueta es el cluster jerárquico con un valor de 0.625, seguido de cerca de K means
 
 
 ```{r analisis de cada grupo jerarquico , echo=FALSE}
