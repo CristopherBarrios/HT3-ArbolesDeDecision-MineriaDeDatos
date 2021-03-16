@@ -23,6 +23,7 @@ library(tree)
 library(rpart.plot)
 library(ggplot2)
 library(randomForest)
+library(tidyverse)
 ```
 
 ### 1. Datos
@@ -44,7 +45,7 @@ Podemos ver que el precio de la mayoría de las casas se concentra por debajo de
 
 
 
-```{r echo=FALSE}
+```{r, echo=FALSE}
 library(ggplot2)
 df <- as.data.frame(train$HouseStyle)
 ggplot(data=df, aes(x=train$HouseStyle)) + 
@@ -57,7 +58,7 @@ ggplot(data=df, aes(x=train$HouseStyle)) +
 
 Las casas que predominan el mercado son las de un nivel.
 
-```{r echo=FALSE}
+```{r, echo=FALSE}
 library(ggplot2)
 df <- as.data.frame(train$YearBuilt)
 ggplot(data=df, aes(x=train$YearBuilt)) + 
@@ -70,7 +71,7 @@ ggplot(data=df, aes(x=train$YearBuilt)) +
 
 La década en la que más casas se han construidos han sido de 1900 a los 2000.
 
-```{r echo=FALSE}
+```{r, echo=FALSE}
 library(ggplot2)
 df <- as.data.frame(train$BldgType)
 ggplot(data=df, aes(x=train$BldgType)) + 
@@ -83,7 +84,7 @@ ggplot(data=df, aes(x=train$BldgType)) +
 
 Los tipos de casas más populares, son aquellos que fueron diseñados para una sola familia.
 
-```{r echo=FALSE}
+```{r, echo=FALSE}
 library(ggplot2)
 df <- as.data.frame(train$OverallQual)
 ggplot(data=df, aes(x=train$OverallQual)) + 
@@ -104,7 +105,7 @@ ggplot(data=df2, aes(x=train$OverallCond)) +
 
 Las condiciones generales de las casas se encuentra en un rango de 5 a 10.
 
-```{r echo=FALSE}
+```{r, echo=FALSE}
 library(ggplot2)
 df <- as.data.frame(train$Condition1)
 ggplot(data=df, aes(x=train$Condition1)) + 
@@ -123,12 +124,12 @@ La proximidad más popular o que más se da es la normal.
 
 Se trabajará con las siguientes variables: LotArea, overallQual, overallCond, yearBuilt,bedroomAbvGr, GarageArea, SalePrice pues ya que son de formato int, estos pueden ser clasificados y valorados.
 
-```{r preprocesamiento, echo=FALSE}
+```{r, preprocesamiento, echo=FALSE}
 datos <- train[,c(5,18,19,20,52,63,81)]
 ```
 
 Se calcula cuál es la cantidad ideal de clusters a utilizar.
-```{r cantClusters, echo=FALSE}
+```{r, echo=FALSE}
 wss <- (nrow(datos[,1:7])-1)*sum(apply(datos[,1:7],2,var))
 for (i in 2:10) 
   wss[i] <- sum(kmeans(datos[,1:7], centers=i)$withinss)
@@ -138,7 +139,7 @@ plot(1:10, wss, type="b", xlab="Number of Clusters",  ylab="Within groups sum of
 Como se puede observar en la gráfica de codo, la cantidad ideal de clusters es de 3.
 
 #### Agrupamiento por medio de k-means  
-```{r kmeans, echo=FALSE}
+```{r, echo=FALSE}
 km<-kmeans(datos[,1:7],3,iter.max =100)
 datos$grupo<-km$cluster
 plotcluster(datos[,1:7],km$cluster)
@@ -147,7 +148,7 @@ plotcluster(datos[,1:7],km$cluster)
 Con este algoritmo se puede ver que los datos se clasificaron en tres grupos, de los cuales uno está visualmente separado de los demás datos, y dos de estos están un poco más juntos.
 
 #### Agrupamiento por medio de clustering jerárquico
-```{r jerarquico, echo=FALSE}
+```{r, echo=FALSE}
 hc<-hclust(dist(datos[,1:7])) #Genera el clustering jerárquico de los datos
 plot(hc) #Genera el dendograma
 rect.hclust(hc,k=3) #Dibuja el corte de los grupos en el gráfico
@@ -161,34 +162,51 @@ g3HC<-datos[datos$gruposHC==3,]
 
 #### Calidad del agrupamiento
 ##### K-means
-```{r calk, echo=FALSE}
+```{r, echo=FALSE}
 silkm<-silhouette(km$cluster,dist(datos[,1:7]))
 mean(silkm[,3])
 ```
 
 ##### Cluster jerárquico
-```{r caljer, echo=FALSE}
+```{r, echo=FALSE}
 silch<-silhouette(groups,dist(datos[,1:7]))
 mean(silch[,3])
 ```
 
 
-```{r analisis de cada grupo jerarquico , echo=FALSE}
+```{r, echo=FALSE}
 summary(g1HC)
 summary(g2HC)
 summary(g3HC)
 ```
 
-Al realizar la agrupación por clusters, se puede ver que la división más obvia es por precio de venta.
+Al realizar la agrupación por clusters, se puede ver que la división más obvia es por precio de venta. Dados los rangos de precio vistos en los resúmenes de los grupos, podemos establecer cuáles son los rangos para determinar si una casa es económica, intermedia o cara. Si el precio es menor o igual a 232,600, entonces es una casa económica. Si el precio se encuentra entre 232,601 y 501,837, entonces será una casa intermedia. Y si el precio es mayor a 501,838, entonces será una casa cara.
 
-```{r set, echo=FALSE}
+```{r, echo=FALSE}
 # variable respuesta 
-porciento <- 70/100
-train$clasificacion <- ifelse(train$SalePrice <= 251000, "Economicas", ifelse(train$SalePrice <= 538000, "Intermedias", ifelse(train$SalePrice <= 755000, "Caras")))
+porcentaje <- 70/100
+train<-read.csv("./data/train.csv")
+test<-read.csv("./data/test.csv")
+
+train$clasificacion <- ifelse(train$SalePrice <= 232600, "Economica", ifelse(train$SalePrice <= 501837, "Intermedia", ifelse(train$SalePrice <= 755000, "Cara")))
+
 set.seed(123)
-trainRowsNumber<-sample(1:nrow(train),porciento*nrow(train))
+
+trainRowsNumber<-sample(1:nrow(train),porcentaje*nrow(train))
 train<-train[trainRowsNumber,]
 test<-train[-trainRowsNumber,]
 arbolModelo<-rpart(SalePrice~.,train,method = "anova")
-rpart.plot(arbolModelo)
 ```
+
+```{r, echo=FALSE}
+save(train, test, arbolModelo, file="Variables.RData")
+load("Variables.RData")
+dt_model<-rpart(SalePrice~.,train,method="anova")
+rpart.plot(dt_model)
+```
+
+```{r, echo=FALSE}
+newTest <- select(test, LotArea, OverallQual, OverallCond, YearBuilt, BedroomAbvGr, GarageArea, SalePrice)
+
+```
+
